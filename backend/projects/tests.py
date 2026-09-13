@@ -97,3 +97,36 @@ class TestTasks:
 
         response = client.delete(f'/api/tasks/{task.id}')
         assert response.status_code == 403
+    def test_search_filters_tasks_by_title_or_description(self, auth_client, user):
+        project = Project.objects.create(name='P', owner=user)
+        Membership.objects.create(user=user, project=project, role='admin')
+        Task.objects.create(project=project, title='Fix login button', description='ui polish', created_by=user)
+        Task.objects.create(project=project, title='Write docs', description='covers authentication flow', created_by=user)
+        Task.objects.create(project=project, title='Unrelated', description='other', created_by=user)
+
+        by_title = auth_client.get(f'/api/projects/{project.id}/tasks', {'q': 'login'})
+        assert by_title.status_code == 200
+        assert [t['title'] for t in by_title.data['tasks']] == ['Fix login button']
+
+        by_description = auth_client.get(f'/api/projects/{project.id}/tasks', {'q': 'authentication'})
+        assert by_description.status_code == 200
+        assert [t['title'] for t in by_description.data['tasks']] == ['Write docs']
+
+    def test_search_treats_sql_payload_as_literal_text(self, auth_client, user):
+        project = Project.objects.create(name='Mine', owner=user)
+        Membership.objects.create(user=user, project=project, role='admin')
+        Task.objects.create(project=project, title='Safe task', description='normal', created_by=user)
+
+        other = User.objects.create_user(email='other@example.com', name='Other', password='password123')
+        other_project = Project.objects.create(name='Theirs', owner=other)
+        Membership.objects.create(user=other, project=other_project, role='admin')
+        Task.objects.create(project=other_project, title='Secret task', description='should not leak', created_by=other)
+
+        response = auth_client.get(
+            f'/api/projects/{project.id}/tasks',
+            {'q': "%' OR 1=1 --"},
+        )
+        assert response.status_code == 200
+        titles = [t['title'] for t in response.data['tasks']]
+        assert 'Secret task' not in titles
+        assert titles == []

@@ -16,6 +16,54 @@ Source of truth: current `backend/projects/views.py`. Ranked by business impact.
 
 **Minimal fix:** Stop using a raw cursor. Filter with the ORM, e.g. `Task.objects.filter(project_id=project_id).filter(Q(title__icontains=q) | Q(description__icontains=q))`. If SQL is kept, use `cursor.execute(...)` with placeholders only — never interpolate `q` into the string.
 
+**Curl Commands**
+1. curl.exe -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d '{\"email\":\"meera@taskboard.dev\",\"password\":\"password123\"}'      
+2. curl.exe -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzkxODg3MTc4LCJpYXQiOjE3ODkyOTUxNzgsImp0aSI6IjM2YTBlZjUxYjNkOTQzYjU4YmMzOGUwYmVlNGM1Y2EzIiwidXNlcl9pZCI6IjU5Mjc1MjE4LTk4NDYtNDFiNS04NDlhLTUxYzFiOGUxM2M1NiJ9._XzXP77Zh5leS68IiDc9YB2UoNkn25Ewd_CKKK1jTNk" http://localhost:8000/api/projects
+**Response**
+{
+  "projects": [
+    {
+      "id": "d4b8dfe3-c286-43b2-ae10-f4e0d03fa33d",
+      "name": "Internal Tools Cleanup",
+      "description": "Retire legacy admin tools and consolidate into the new console.",
+      "role": "admin",
+      "owner": {
+        "id": "59275218-9846-41b5-849a-51c1b8e13c56",
+        "email": "meera@taskboard.dev",
+        "name": "Meera Iyer"
+      },
+      "taskCount": 0,
+      "createdAt": "2026-09-13T08:38:01.684624+00:00"
+    },
+    {
+      "id": "5caf3efc-503a-4607-8561-a4925c4b04cc",
+      "name": "Customer Onboarding Revamp",
+      "description": "Reduce time-to-first-value from 9 days to under 3 days.",
+      "role": "member",
+      "owner": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      },
+      "taskCount": 5,
+      "createdAt": "2026-09-13T08:38:01.662096+00:00"
+    },
+    {
+      "id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "name": "Q3 Launch",
+      "description": "Coordinate the Q3 product launch across engineering, design, and marketing.",
+      "role": "admin",
+      "owner": {
+        "id": "59275218-9846-41b5-849a-51c1b8e13c56",
+        "email": "meera@taskboard.dev",
+        "name": "Meera Iyer"
+      },
+      "taskCount": 7,
+      "createdAt": "2026-09-13T08:38:01.634213+00:00"
+    }
+  ]
+}
+
 ---
 
 ## 2. Task update has no object-level authorization
