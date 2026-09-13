@@ -502,3 +502,16 @@ curl.exe -s -H "Authorization: Bearer $($meera.token)" "http://localhost:8000/ap
 
 - Task **delete**, project list/detail/create-task, members, and export already check membership.
 - JWT lifetime, CORS, and Airtable export being a stub are not in this review’s four categories.
+
+
+
+Part 3a — Build Task comments 
+Tasks can have a chronological comment thread where project members discuss the work. (This is intentional — the team treats comments as part of the engagement audit trail.)
+Must work:
+●	Comments are listed chronologically, showing author, body, and when posted
+●	Project members can post; viewers can read but not post
+●	Comments are append-only — once posted, they cannot be edited or deleted.
+●	Authorization must be enforced correctly
+
+Note:-
+**Proofs are stored in q-taskboard/Working task proof**

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from users.serializers import UserSerializer
-from .models import Project, Membership, Task
+from .models import Project, Membership, Task,TaskComment
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -46,3 +46,16 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'owner_id', 'owner', 'memberships', 'tasks', 'created_at', 'updated_at']
+
+class TaskCommentSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+    task_id = serializers.SerializerMethodField()
+    body = serializers.CharField(trim_whitespace=True, allow_blank=False)
+
+    def get_task_id(self, obj):
+        return str(obj.task_id)
+
+    class Meta:
+        model = TaskComment
+        fields = ['id', 'task_id', 'author', 'body', 'created_at']
+        read_only_fields = ['id', 'task_id', 'author', 'created_at']

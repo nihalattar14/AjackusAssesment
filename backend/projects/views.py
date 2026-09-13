@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from users.serializers import UserSerializer
-from .models import Project, Membership, Task
-from .serializers import ProjectDetailSerializer, TaskSerializer
+from .models import Project, Membership, Task, TaskComment
+from .serializers import ProjectDetailSerializer, TaskSerializer, TaskCommentSerializer
 
 
 def _get_membership(user, project_id):
@@ -233,3 +233,41 @@ class ExportView(APIView):
 
         tasks = Task.objects.filter(project_id=project_id).select_related('assignee', 'created_by')
         return Response({'exported': 0, 'tasks': TaskSerializer(tasks, many=True).data})
+
+
+class TaskCommentListCreateView(APIView):
+    """List and create comments for a task. Comments have no update and delete API"""
+    def _authorized_task(self, request, task_id):
+        try:
+            task = Task.objects.get(id=task_id)
+        except Task.DoesNotExist:
+            return None, Response({'error': 'not found'}, status=status.HTTP_404_NOT_FOUND)
+        membership = _get_membership(request.user, str(task.project_id))
+        if not membership:
+            return None, Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        return (task, membership), None
+    
+    def get(self, request, task_id):
+        access, error = self._authorized_task(request, task_id)
+        if error is not None:
+            return error
+        task, _membership = access
+        comments = (
+            TaskComment.objects
+            .filter(task=task)
+            .select_related('author')
+            .order_by('created_at', 'id')
+        )
+        return Response({'comments': TaskCommentSerializer(comments, many=True).data})
+    
+    def post(self, request, task_id):
+        access, error = self._authorized_task(request, task_id)
+        if error is not None:
+            return error
+        tasks,_membership = access
+        if not _can_edit_tasks(_membership.role):
+            return Response({'error': 'viewers cannot create comments'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = TaskCommentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.save(task=tasks, author=request.user)
+        return Response({'comment': TaskCommentSerializer(comment).data}, status=status.HTTP_201_CREATED)

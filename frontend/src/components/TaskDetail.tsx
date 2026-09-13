@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api-client";
-import type { ApiTask, ApiProjectMember, TaskStatus } from "@/types";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiFetch, getStoredUser } from "@/lib/api-client";
+import type { ApiTask, ApiProjectMember, TaskStatus, ApiComment } from "@/types";
 import { STATUS_LABELS, STATUS_ORDER } from "@/types";
 
 type Props = {
@@ -18,6 +18,27 @@ export function TaskDetail({ task, projectId, members, onClose }: Props) {
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [assigneeId, setAssigneeId] = useState<string>(task.assigneeId ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [commentBody, setCommentBody] = useState("");
+  const role = members.find((member) => member.user.id === getStoredUser()?.id)?.role;
+
+  const canComment = role === "admin" || role === "member";
+
+  const commentsQuery = useQuery({
+    queryKey: ["task-comments", task.id,],
+    queryFn: () => apiFetch<{ comments: ApiComment[] }>(`/api/tasks/${task.id}/comments`),
+  });
+
+  const postComment = useMutation({
+    mutationFn: (body: string) => apiFetch<{ comment: ApiComment }>(`/api/tasks/${task.id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({body}),
+    }),
+    onSuccess: () => {
+      setCommentBody("");      
+      queryClient.invalidateQueries({ queryKey: ["task-comments", task.id] });
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "comment failed"),
+  });
 
   const updateTask = useMutation({
     mutationFn: (input: Partial<ApiTask>) =>
@@ -52,13 +73,21 @@ export function TaskDetail({ task, projectId, members, onClose }: Props) {
     });
   }
 
+  function onPostComment(e:React.FormEvent) {
+    e.preventDefault();
+    const body = commentBody.trim();
+    if (!body) return;
+    setError(null);
+    postComment.mutate(body);
+  }
+
   return (
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-surface border border-border rounded-lg p-6"
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-surface border border-border rounded-lg p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -120,6 +149,61 @@ export function TaskDetail({ task, projectId, members, onClose }: Props) {
             </select>
           </label>
         </div>
+
+        <section className="mb-4 border-t border-border pt-4">
+          <h3 className="text-sm font-medium mb-2">comments</h3>
+          {commentsQuery.isLoading && (
+            <p className="text-xs text-muted">loading…</p>
+          )}
+          {commentsQuery.error && (
+            <p className="text-sm text-red-400" role="alert">
+              {commentsQuery.error instanceof Error
+                ? commentsQuery.error.message
+                : "failed to load comments"}
+            </p>
+          )}
+          <ul className="space-y-3 max-h-48 overflow-y-auto mb-3">
+            {(commentsQuery.data?.comments ?? []).length === 0 &&
+              !commentsQuery.isLoading && (
+                <li className="text-xs text-muted italic">no comments yet</li>
+              )}
+            {(commentsQuery.data?.comments ?? []).map((c) => (
+              <li key={c.id} className="text-sm">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium">{c.author.name}</span>
+                  <span className="text-xs text-muted">
+                    {new Date(c.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-sm mt-1 whitespace-pre-wrap">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+          {canComment ? (
+            <form onSubmit={onPostComment} className="space-y-2">
+              <textarea
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                rows={2}
+                placeholder="write a comment"
+                className="block w-full rounded-md bg-bg border border-border px-3 py-2 text-sm focus:border-accent focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={postComment.isPending || !commentBody.trim()}
+                className="text-sm px-3 py-1.5 rounded-md bg-accent text-white hover:bg-indigo-500 disabled:opacity-50"
+              >
+                {postComment.isPending ? "posting…" : "post"}
+              </button>
+            </form>
+          ) : (
+            <p className="text-xs text-muted">
+              viewers can read comments but cannot post
+            </p>
+          )}
+        </section>
+
+
 
         {error && (
           <p className="text-sm text-red-400 mb-3" role="alert">

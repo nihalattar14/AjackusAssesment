@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 from users.models import User
-from projects.models import Project, Membership, Task
+from projects.models import Project, Membership, Task, TaskComment
 
 
 @pytest.fixture
@@ -182,3 +182,91 @@ class TestTasks:
         response = auth_client.patch(f'/api/tasks/{task.id}', {'title': 'Updated'}, format='json')
         assert response.status_code == 200
         assert response.data['task']['title'] == 'Updated'
+
+@pytest.mark.django_db
+class TestComments:
+    def test_admin_can_post_comment(self, auth_client, user):
+        project = Project.objects.create(name='P', owner=user)
+        Membership.objects.create(user=user, project=project, role='admin')
+        task = Task.objects.create(project=project, title='A task', created_by=user)
+
+        response = auth_client.post(
+            f'/api/tasks/{task.id}/comments',
+            {'body': 'Looks good'},
+            format='json',
+        )
+        assert response.status_code == 201
+        assert response.data['comment']['body'] == 'Looks good'
+        assert response.data['comment']['author']['id'] == str(user.id)
+
+    def test_member_can_post_comment(self, client, user):
+        owner = User.objects.create_user(email='owner@example.com', name='Owner', password='password123')
+        project = Project.objects.create(name='P', owner=owner)
+        Membership.objects.create(user=owner, project=project, role='admin')
+        Membership.objects.create(user=user, project=project, role='member')
+        task = Task.objects.create(project=project, title='A task', created_by=owner)
+
+        resp = client.post('/api/auth/login', {'email': 'meera@taskboard.dev', 'password': 'password123'}, format='json')
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['token']}")
+
+        response = client.post(
+            f'/api/tasks/{task.id}/comments',
+            {'body': 'Starting this'},
+            format='json',
+        )
+        assert response.status_code == 201
+        assert response.data['comment']['body'] == 'Starting this'
+
+    def test_viewer_can_list_but_cannot_post_comment(self, client, user):
+        owner = User.objects.create_user(email='owner@example.com', name='Owner', password='password123')
+        project = Project.objects.create(name='P', owner=owner)
+        Membership.objects.create(user=owner, project=project, role='admin')
+        Membership.objects.create(user=user, project=project, role='viewer')
+        task = Task.objects.create(project=project, title='A task', created_by=owner)
+        TaskComment.objects.create(task=task, author=owner, body='Existing note')
+
+        resp = client.post('/api/auth/login', {'email': 'meera@taskboard.dev', 'password': 'password123'}, format='json')
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['token']}")
+
+        listed = client.get(f'/api/tasks/{task.id}/comments')
+        assert listed.status_code == 200
+        assert [c['body'] for c in listed.data['comments']] == ['Existing note']
+
+        posted = client.post(
+            f'/api/tasks/{task.id}/comments',
+            {'body': 'Viewer should not post'},
+            format='json',
+        )
+        assert posted.status_code == 403
+        assert TaskComment.objects.filter(task=task).count() == 1
+
+    def test_non_member_cannot_list_or_post_comments(self, client, user):
+        owner = User.objects.create_user(email='owner@example.com', name='Owner', password='password123')
+        project = Project.objects.create(name='P', owner=owner)
+        Membership.objects.create(user=owner, project=project, role='admin')
+        task = Task.objects.create(project=project, title='A task', created_by=owner)
+
+        resp = client.post('/api/auth/login', {'email': 'meera@taskboard.dev', 'password': 'password123'}, format='json')
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['token']}")
+
+        listed = client.get(f'/api/tasks/{task.id}/comments')
+        assert listed.status_code == 403
+
+        posted = client.post(
+            f'/api/tasks/{task.id}/comments',
+            {'body': 'Hacked'},
+            format='json',
+        )
+        assert posted.status_code == 403
+        assert TaskComment.objects.filter(task=task).count() == 0
+
+    def test_comments_listed_chronologically(self, auth_client, user):
+        project = Project.objects.create(name='P', owner=user)
+        Membership.objects.create(user=user, project=project, role='admin')
+        task = Task.objects.create(project=project, title='A task', created_by=user)
+        TaskComment.objects.create(task=task, author=user, body='First')
+        TaskComment.objects.create(task=task, author=user, body='Second')
+
+        response = auth_client.get(f'/api/tasks/{task.id}/comments')
+        assert response.status_code == 200
+        assert [c['body'] for c in response.data['comments']] == ['First', 'Second']
