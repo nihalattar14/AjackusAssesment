@@ -77,6 +77,399 @@ Source of truth: current `backend/projects/views.py`. Ranked by business impact.
 
 **Minimal fix:** After loading the task, resolve membership from `task.project_id`. Return 404/403 if there is no membership. Return 403 unless the role is admin or member. Reuse the same checks as `delete`.
 
+**Curl Commands**
+
+$meera = curl.exe -s -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d '{\"email\":\"meera@taskboard.dev\",\"password\":\"password123\"}' | ConvertFrom-Json
+$kavya = curl.exe -s -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d '{\"email\":\"kavya@example.com\",\"password\":\"password123\"}' | ConvertFrom-Json
+$dev   = curl.exe -s -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d '{\"email\":\"dev@example.com\",\"password\":\"password123\"}' | ConvertFrom-Json
+$lina  = curl.exe -s -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d '{\"email\":\"lina@example.com\",\"password\":\"password123\"}' | ConvertFrom-Json
+
+$projects = curl.exe -s -H "Authorization: Bearer $($meera.token)" http://localhost:8000/api/projects | ConvertFrom-Json
+$projectId = ($projects.projects | Where-Object { $_.name -eq "Q3 Launch" }).id
+
+$tasks = curl.exe -s -H "Authorization: Bearer $($meera.token)" "http://localhost:8000/api/projects/$projectId/tasks" | ConvertFrom-Json
+$taskId = $tasks.tasks[0].id
+$taskId
+
+$body = '{"title":"Updated by admin"}'
+curl.exe -s -X PATCH "http://localhost:8000/api/tasks/$taskId" -H "Authorization: Bearer $($meera.token)" -H "Content-Type: application/json" --data-raw $body
+$memberBody = '{"title":"Updated by member"}'
+curl.exe -s -X PATCH "http://localhost:8000/api/tasks/$taskId" -H "Authorization: Bearer $($kavya.token)" -H "Content-Type: application/json" --data-raw $memberBody
+
+$viewerBody = '{"title":"Hacked by viewer"}'
+curl.exe -s -X PATCH "http://localhost:8000/api/tasks/$taskId" -H "Authorization: Bearer $($dev.token)" -H "Content-Type: application/json" --data-raw $viewerBody
+curl.exe -s -H "Authorization: Bearer $($meera.token)" "http://localhost:8000/api/projects/$projectId/tasks"
+
+$outsiderBody = '{"title":"Hacked by outsider"}'
+curl.exe -s -X PATCH "http://localhost:8000/api/tasks/$taskId" -H "Authorization: Bearer $($lina.token)" -H "Content-Type: application/json" --data-raw $outsiderBody
+curl.exe -s -H "Authorization: Bearer $($meera.token)" "http://localhost:8000/api/projects/$projectId/tasks"
+
+curl.exe -s -H "Authorization: Bearer $($meera.token)" "http://localhost:8000/api/projects/$projectId/tasks"
+
+**Response**
+4dbbb7d1-23ac-4762-9374-4bcdae02c685{
+  "detail": "JSON parse error - Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+}{
+  "detail": "JSON parse error - Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+}{
+  "error": "viewers cannot update tasks"
+}{
+  "tasks": [
+    {
+      "id": "4dbbb7d1-23ac-4762-9374-4bcdae02c685",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Finalize launch date with marketing",
+      "description": "Detail for: Finalize launch date with marketing",
+      "status": "done",
+      "assignee_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 0,
+      "created_at": "2026-09-13T08:38:01.692087Z",
+      "updated_at": "2026-09-13T08:38:01.692105Z",
+      "assignee": {
+        "id": "59275218-9846-41b5-849a-51c1b8e13c56",
+        "email": "meera@taskboard.dev",
+        "name": "Meera Iyer"
+      }
+    },
+    {
+      "id": "bcc796d2-6ccc-408a-8d0e-9c2e9ec1b237",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Record demo video",
+      "description": "Detail for: Record demo video",
+      "status": "in_progress",
+      "assignee_id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 2,
+      "created_at": "2026-09-13T08:38:01.699835Z",
+      "updated_at": "2026-09-13T08:38:01.699848Z",
+      "assignee": {
+        "id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+        "email": "kavya@example.com",
+        "name": "Kavya Reddy"
+      }
+    },
+    {
+      "id": "8b18b20f-2ab9-4cb2-8981-3eb85ff1598b",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Set up analytics dashboards",
+      "description": "Detail for: Set up analytics dashboards",
+      "status": "in_progress",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 3,
+      "created_at": "2026-09-13T08:38:01.705260Z",
+      "updated_at": "2026-09-13T08:38:01.705286Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    },
+    {
+      "id": "701eb891-6735-439f-b729-30b536ae51c4",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Draft press release",
+      "description": "Detail for: Draft press release",
+      "status": "review",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 1,
+      "created_at": "2026-09-13T08:38:01.696257Z",
+      "updated_at": "2026-09-13T08:38:01.696273Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    },
+    {
+      "id": "ac214a8c-ab47-4428-b441-7bca96ab202e",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Prepare customer email blast",
+      "description": "Detail for: Prepare customer email blast",
+      "status": "todo",
+      "assignee_id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 4,
+      "created_at": "2026-09-13T08:38:01.710176Z",
+      "updated_at": "2026-09-13T08:38:01.710194Z",
+      "assignee": {
+        "id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+        "email": "kavya@example.com",
+        "name": "Kavya Reddy"
+      }
+    },
+    {
+      "id": "6eed0327-a4b4-4ac6-a402-71802d387b7b",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Update pricing page copy",
+      "description": "Detail for: Update pricing page copy",
+      "status": "todo",
+      "assignee_id": null,
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 5,
+      "created_at": "2026-09-13T08:38:01.714321Z",
+      "updated_at": "2026-09-13T08:38:01.714349Z",
+      "assignee": null
+    },
+    {
+      "id": "05cae316-ec8f-4eb9-b276-8ccbc97bf484",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "QA the new signup flow end-to-end",
+      "description": "Detail for: QA the new signup flow end-to-end",
+      "status": "todo",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 6,
+      "created_at": "2026-09-13T08:38:01.717850Z",
+      "updated_at": "2026-09-13T08:38:01.717863Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    }
+  ]
+}{
+  "error": "forbidden"
+}{
+  "tasks": [
+    {
+      "id": "4dbbb7d1-23ac-4762-9374-4bcdae02c685",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Finalize launch date with marketing",
+      "description": "Detail for: Finalize launch date with marketing",
+      "status": "done",
+      "assignee_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 0,
+      "created_at": "2026-09-13T08:38:01.692087Z",
+      "updated_at": "2026-09-13T08:38:01.692105Z",
+      "assignee": {
+        "id": "59275218-9846-41b5-849a-51c1b8e13c56",
+        "email": "meera@taskboard.dev",
+        "name": "Meera Iyer"
+      }
+    },
+    {
+      "id": "bcc796d2-6ccc-408a-8d0e-9c2e9ec1b237",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Record demo video",
+      "description": "Detail for: Record demo video",
+      "status": "in_progress",
+      "assignee_id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 2,
+      "created_at": "2026-09-13T08:38:01.699835Z",
+      "updated_at": "2026-09-13T08:38:01.699848Z",
+      "assignee": {
+        "id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+        "email": "kavya@example.com",
+        "name": "Kavya Reddy"
+      }
+    },
+    {
+      "id": "8b18b20f-2ab9-4cb2-8981-3eb85ff1598b",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Set up analytics dashboards",
+      "description": "Detail for: Set up analytics dashboards",
+      "status": "in_progress",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 3,
+      "created_at": "2026-09-13T08:38:01.705260Z",
+      "updated_at": "2026-09-13T08:38:01.705286Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    },
+    {
+      "id": "701eb891-6735-439f-b729-30b536ae51c4",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Draft press release",
+      "description": "Detail for: Draft press release",
+      "status": "review",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 1,
+      "created_at": "2026-09-13T08:38:01.696257Z",
+      "updated_at": "2026-09-13T08:38:01.696273Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    },
+    {
+      "id": "ac214a8c-ab47-4428-b441-7bca96ab202e",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Prepare customer email blast",
+      "description": "Detail for: Prepare customer email blast",
+      "status": "todo",
+      "assignee_id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 4,
+      "created_at": "2026-09-13T08:38:01.710176Z",
+      "updated_at": "2026-09-13T08:38:01.710194Z",
+      "assignee": {
+        "id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+        "email": "kavya@example.com",
+        "name": "Kavya Reddy"
+      }
+    },
+    {
+      "id": "6eed0327-a4b4-4ac6-a402-71802d387b7b",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Update pricing page copy",
+      "description": "Detail for: Update pricing page copy",
+      "status": "todo",
+      "assignee_id": null,
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 5,
+      "created_at": "2026-09-13T08:38:01.714321Z",
+      "updated_at": "2026-09-13T08:38:01.714349Z",
+      "assignee": null
+    },
+    {
+      "id": "05cae316-ec8f-4eb9-b276-8ccbc97bf484",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "QA the new signup flow end-to-end",
+      "description": "Detail for: QA the new signup flow end-to-end",
+      "status": "todo",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 6,
+      "created_at": "2026-09-13T08:38:01.717850Z",
+      "updated_at": "2026-09-13T08:38:01.717863Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    }
+  ]
+}{
+  "tasks": [
+    {
+      "id": "4dbbb7d1-23ac-4762-9374-4bcdae02c685",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Finalize launch date with marketing",
+      "description": "Detail for: Finalize launch date with marketing",
+      "status": "done",
+      "assignee_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 0,
+      "created_at": "2026-09-13T08:38:01.692087Z",
+      "updated_at": "2026-09-13T08:38:01.692105Z",
+      "assignee": {
+        "id": "59275218-9846-41b5-849a-51c1b8e13c56",
+        "email": "meera@taskboard.dev",
+        "name": "Meera Iyer"
+      }
+    },
+    {
+      "id": "bcc796d2-6ccc-408a-8d0e-9c2e9ec1b237",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Record demo video",
+      "description": "Detail for: Record demo video",
+      "status": "in_progress",
+      "assignee_id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 2,
+      "created_at": "2026-09-13T08:38:01.699835Z",
+      "updated_at": "2026-09-13T08:38:01.699848Z",
+      "assignee": {
+        "id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+        "email": "kavya@example.com",
+        "name": "Kavya Reddy"
+      }
+    },
+    {
+      "id": "8b18b20f-2ab9-4cb2-8981-3eb85ff1598b",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Set up analytics dashboards",
+      "description": "Detail for: Set up analytics dashboards",
+      "status": "in_progress",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 3,
+      "created_at": "2026-09-13T08:38:01.705260Z",
+      "updated_at": "2026-09-13T08:38:01.705286Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    },
+    {
+      "id": "701eb891-6735-439f-b729-30b536ae51c4",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Draft press release",
+      "description": "Detail for: Draft press release",
+      "status": "review",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 1,
+      "created_at": "2026-09-13T08:38:01.696257Z",
+      "updated_at": "2026-09-13T08:38:01.696273Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    },
+    {
+      "id": "ac214a8c-ab47-4428-b441-7bca96ab202e",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Prepare customer email blast",
+      "description": "Detail for: Prepare customer email blast",
+      "status": "todo",
+      "assignee_id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 4,
+      "created_at": "2026-09-13T08:38:01.710176Z",
+      "updated_at": "2026-09-13T08:38:01.710194Z",
+      "assignee": {
+        "id": "ad575e18-96c8-4c61-8f14-c7d50630a52d",
+        "email": "kavya@example.com",
+        "name": "Kavya Reddy"
+      }
+    },
+    {
+      "id": "6eed0327-a4b4-4ac6-a402-71802d387b7b",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "Update pricing page copy",
+      "description": "Detail for: Update pricing page copy",
+      "status": "todo",
+      "assignee_id": null,
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 5,
+      "created_at": "2026-09-13T08:38:01.714321Z",
+      "updated_at": "2026-09-13T08:38:01.714349Z",
+      "assignee": null
+    },
+    {
+      "id": "05cae316-ec8f-4eb9-b276-8ccbc97bf484",
+      "project_id": "184cd94d-f8cb-41c5-b107-afb20182c533",
+      "title": "QA the new signup flow end-to-end",
+      "description": "Detail for: QA the new signup flow end-to-end",
+      "status": "todo",
+      "assignee_id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+      "created_by_id": "59275218-9846-41b5-849a-51c1b8e13c56",
+      "position": 6,
+      "created_at": "2026-09-13T08:38:01.717850Z",
+      "updated_at": "2026-09-13T08:38:01.717863Z",
+      "assignee": {
+        "id": "bed410a3-276a-4bd9-a661-dcb39fe0b89b",
+        "email": "arjun@taskboard.dev",
+        "name": "Arjun Rao"
+      }
+    }
+  ]
+}
 ---
 
 ## 3. Assignee can be any user in the system, not a project member
