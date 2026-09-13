@@ -47,6 +47,15 @@ export type ApiComment = {
   author: ApiUser;
 };
 
+export type AirtableExportResult = {
+  total: number;
+  created: number;
+  updated: number;
+  failed: number;
+  errors?: { taskId: string; error: string }[];
+  error?: string;
+};
+
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: "To do",
   in_progress: "In progress",

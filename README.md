@@ -115,15 +115,41 @@ curl -H "Authorization: Bearer <token>" http://localhost:8000/api/projects
 
 ## Airtable Export (Part 3c)
 
-Set these in your `.env` before running the export:
+Django authorizes the user and loads **only that project's tasks**, then POSTs them to a Node sidecar that uses the official [`airtable`](https://www.npmjs.com/package/airtable) package. The API token never leaves the server and is never sent to the browser.
+
+### Environment
+
+Copy `.env.example` to `.env` (do not commit `.env`):
 
 ```
-AIRTABLE_API_KEY=your_personal_access_token
+AIRTABLE_API_KEY=patXXXXXXXX
 AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
 AIRTABLE_TABLE_NAME=Tasks
+AIRTABLE_EXPORTER_URL=http://localhost:3001
 ```
 
-The backend uses `pyairtable` for real API calls. `backend/projects/airtable_mock.py` is a test double — use it in unit tests, not in production code.
+In Docker Compose the backend uses `AIRTABLE_EXPORTER_URL=http://airtable-exporter:3001`. Host interpolation reads `AIRTABLE_*` from your `.env`.
+
+### Airtable table setup
+
+Create a base with a table named `Tasks` (or match `AIRTABLE_TABLE_NAME`) and these fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| Task ID | Single line text | Stable UUID from TaskBoard. Used for idempotent upserts. |
+| Title | Single line text | |
+| Description | Long text | |
+| Status | Single line text | `todo`, `in_progress`, `review`, `done` |
+| Assignee | Single line text | Display name, empty if unassigned |
+| Position | Number | |
+| Project ID | Single line text | |
+| Created At | Single line text | ISO timestamp |
+
+Token permissions: a personal access token with `data.records:read` and `data.records:write` on this base.
+
+Repeat exports update the row with the same **Task ID**; they do not create duplicates.
+
+The Node service is `exporter/`. `exporter/src/lib/airtable-mock.ts` is a test double only — production `server.ts` always uses the real Airtable client.
 
 ## Tech Stack
 

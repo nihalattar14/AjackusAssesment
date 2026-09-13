@@ -5,6 +5,7 @@ from django.db.models import Q
 from users.serializers import UserSerializer
 from .models import Project, Membership, Task, TaskComment
 from .serializers import ProjectDetailSerializer, TaskSerializer, TaskCommentSerializer
+from .exporter_client import call_airtable_exporter, serialize_task
 
 
 def _get_membership(user, project_id):
@@ -231,8 +232,15 @@ class ExportView(APIView):
         if not _can_edit_tasks(membership.role):
             return Response({'error': 'only admins and members can export'}, status=status.HTTP_403_FORBIDDEN)
 
-        tasks = Task.objects.filter(project_id=project_id).select_related('assignee', 'created_by')
-        return Response({'exported': 0, 'tasks': TaskSerializer(tasks, many=True).data})
+        tasks = (
+            Task.objects
+            .filter(project_id=project_id)
+            .select_related('assignee')
+            .order_by('position', 'created_at')
+        )
+        payload = [serialize_task(task) for task in tasks]
+        code, body = call_airtable_exporter(payload)
+        return Response(body, status=code)
 
 
 class TaskCommentListCreateView(APIView):

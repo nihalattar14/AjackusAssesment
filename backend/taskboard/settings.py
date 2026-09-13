@@ -55,6 +55,8 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+AIRTABLE_EXPORTER_URL = os.environ.get('AIRTABLE_EXPORTER_URL', 'http://localhost:3001')
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
